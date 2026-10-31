@@ -8,7 +8,7 @@ BUILD_DIR=${BUILD_DIR:-"$ROOT/build-local"}
 mkdir -p "$BUILD_DIR/classes" "$BUILD_DIR/dex" "$BUILD_DIR/tests"
 "$BUILD_TOOLS/aapt2" compile --dir "$ROOT/app/src/main/res" -o "$BUILD_DIR/resources.zip"
 sed 's/<manifest /<manifest package="app.sunward" /' "$ROOT/app/src/main/AndroidManifest.xml" > "$BUILD_DIR/AndroidManifest.xml"
-"$BUILD_TOOLS/aapt2" link --version-code 2 --version-name 1.1 -I "$ANDROID_JAR" --manifest "$BUILD_DIR/AndroidManifest.xml" --java "$BUILD_DIR/generated" -o "$BUILD_DIR/base.apk" "$BUILD_DIR/resources.zip"
+"$BUILD_TOOLS/aapt2" link --version-code 3 --version-name 1.2 -I "$ANDROID_JAR" --manifest "$BUILD_DIR/AndroidManifest.xml" --java "$BUILD_DIR/generated" -o "$BUILD_DIR/base.apk" "$BUILD_DIR/resources.zip"
 find "$ROOT/app/src/main/java" "$BUILD_DIR/generated" -name '*.java' > "$BUILD_DIR/sources.txt"
 javac --release 8 -classpath "$ANDROID_JAR" -d "$BUILD_DIR/classes" @"$BUILD_DIR/sources.txt"
 jar cf "$BUILD_DIR/classes.jar" -C "$BUILD_DIR/classes" .

@@ -4,7 +4,7 @@ A native Android sunscreen reminder for Google Pixel. Android 8.0 or later. No a
 
 ## Install
 
-1. Build the APK using the instructions below, then transfer it to your Pixel (USB, Google Drive, or another method you prefer).
+1. Open [the Sunward download page](https://sunward-sigma.vercel.app) on your Pixel and download the APK.
 2. Open it on the phone. If Android asks, allow that browser/file manager to install this app, then install it. You can turn that install permission off afterward.
 3. Open Sunward. Go to More → Reminder settings to enable notifications and precise timing (Alarms & reminders access).
 4. Add your sunscreen name, SPF, broad-spectrum status, and its label’s water resistance (none/unknown, 40 minutes, or 80 minutes).
@@ -14,11 +14,11 @@ A native Android sunscreen reminder for Google Pixel. Android 8.0 or later. No a
 
 This is a locally signed development build, not a Play Store release. It has been compiled and signature-verified, but has not been run on a physical Pixel or emulator. The first device check should confirm layout, location, exact-alarm permission and actual notification delivery.
 
-## Minimal interface (version 1.1)
+## Minimal interface (version 1.2)
 
-White background, black typography, local UV/weather, a large timer and one primary application button. Tap the sunscreen name to edit it. More contains weather details, reminder settings and help. During a session, the activity menu contains swimming/sweating and towel-drying actions. The adaptive launcher icon is a black outlined sun on white; Android themed icons follow the phone’s system palette.
+White background, black typography, a compact weather panel, a thin circular countdown and one primary application button. The circle represents time until the next reminder, not remaining sunscreen protection. Tap the sunscreen name to edit it. More contains weather details, reminder settings and help. During a session, the activity menu contains swimming/sweating and towel-drying actions. The adaptive launcher icon is a black outlined sun on white; Android themed icons follow the phone’s system palette.
 
-Install version 1.1 over the previous APK to retain settings. This update uses the same signing key.
+Install version 1.2 over the previous APK to retain settings. This update uses the same signing key.
 
 ## Behavior
 
@@ -63,6 +63,6 @@ BUILD_TOOLS="$ANDROID_HOME/build-tools/36.0.0" \
 - Live weather endpoint smoke test: weather fields and hourly UV arrays returned successfully.
 - No attached device or emulator was available. Notification delivery, lifecycle behavior, device location and visual layout still require device testing.
 
-Suggested device checks: allow and deny location/notifications; start and end a session; trigger an immediate reminder using the “Swimming or sweating?” activity menu → “I toweled off”; confirm notification reapplication resets the timer; enable 40/80-minute water mode; change the product mid-session; turn off internet; reboot during a session; verify ending a session stops its location notification.
+Suggested device checks: allow and deny location/notifications; start and end a session; trigger an immediate reminder using the “Activity” menu → “I toweled off”; confirm notification reapplication resets the timer; enable 40/80-minute water mode; change the product mid-session; turn off internet; reboot during a session; verify ending a session stops its location notification.
 
 Gradle wrapper files are from the Gradle project and carry their upstream Apache 2.0 license notices.

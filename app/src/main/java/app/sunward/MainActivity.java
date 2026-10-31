@@ -24,6 +24,9 @@ public class MainActivity extends Activity implements LocationListener {
     private TextView timer,timerDetail,uv,weather,guidance;
     private Button profile,activity;
     private Button apply,end;
+    private CountdownRing ring;
+    private LinearLayout sessionActions;
+    private TextView ringLabel;
     private LocationManager manager;private boolean locating=false;
     private final Runnable tick=new Runnable(){public void run(){update();handler.postDelayed(this,1000);}};
     private final Runnable locationTimeout=()->{if(locating){finishLocation();p.edit().putString("weatherError","No fresh location yet. Check Location in phone settings and try again; the timer works offline.").apply();update();}};
@@ -43,7 +46,7 @@ public class MainActivity extends Activity implements LocationListener {
     Button button(String label,int color,int fg,Runnable click){
         Button b=new Button(this);b.setText(label);b.setTextSize(16);b.setTextColor(fg);b.setAllCaps(false);
         b.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
-        b.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x22000000),bg(color,14),null));
+        b.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(color==INK?0x44ffffff:0x16000000),bg(color,20),null));
         b.setStateListAnimator(null);b.setPadding(dp(16),dp(12),dp(16),dp(12));b.setMinHeight(dp(52));b.setOnClickListener(v->click.run());return b;
     }
     void fullButton(LinearLayout l,Button b){l.addView(b,new LinearLayout.LayoutParams(-1,-2));}
@@ -51,28 +54,41 @@ public class MainActivity extends Activity implements LocationListener {
     void flexibleSpace(){View v=new View(this);content.addView(v,new LinearLayout.LayoutParams(1,dp(24),1));}
     void build(){
         ScrollView scroll=new ScrollView(this);scroll.setFillViewport(true);scroll.setBackgroundColor(WHITE);scroll.setVerticalScrollBarEnabled(false);
-        content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(28),dp(12),dp(28),dp(20));scroll.addView(content);setContentView(scroll);
+        content=new LinearLayout(this);content.setOrientation(LinearLayout.VERTICAL);content.setPadding(dp(24),dp(16),dp(24),dp(20));scroll.addView(content);setContentView(scroll);
         scroll.setOnApplyWindowInsetsListener((v,insets)->{if(Build.VERSION.SDK_INT>=30){android.graphics.Insets bars=insets.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.displayCutout());v.setPadding(bars.left,bars.top,bars.right,bars.bottom);}else{v.setPadding(insets.getSystemWindowInsetLeft(),insets.getSystemWindowInsetTop(),insets.getSystemWindowInsetRight(),insets.getSystemWindowInsetBottom());}return insets;});
         LinearLayout header=new LinearLayout(this);header.setGravity(Gravity.CENTER_VERTICAL);
-        header.addView(text("Sunward",20,INK,true),new LinearLayout.LayoutParams(0,-2,1));
-        Button more=button("More",WHITE,MUTED,()->showMenu());more.setContentDescription("More options and settings");header.addView(more);content.addView(header);
+        ImageView mark=new ImageView(this);mark.setImageResource(R.drawable.ic_sun_small);mark.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        header.addView(mark,new LinearLayout.LayoutParams(dp(27),dp(27)));
+        TextView title=text("Sunward",21,INK,true);title.setPadding(dp(10),0,0,0);header.addView(title,new LinearLayout.LayoutParams(0,-2,1));
+        Button more=button("More",WHITE,MUTED,()->showMenu());more.setTextSize(14);more.setMinWidth(dp(56));more.setContentDescription("More options and settings");header.addView(more);content.addView(header);
+        space(content,24);
+        LinearLayout conditions=new LinearLayout(this);conditions.setOrientation(LinearLayout.VERTICAL);conditions.setGravity(Gravity.CENTER);
+        conditions.setPadding(dp(16),dp(14),dp(16),dp(14));conditions.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x11000000),bg(0xfff7f7f5,20),null));
+        uv=centered("Local UV",17,INK);uv.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));conditions.addView(uv);space(conditions,3);
+        weather=centered("Tap to use your location",13,MUTED);conditions.addView(weather);
+        conditions.setOnClickListener(v->{if(p.getLong("weatherTime",0)==0)requestLocation();else showWeather();});conditions.setFocusable(true);conditions.setMinimumHeight(dp(72));
+        content.addView(conditions,new LinearLayout.LayoutParams(-1,-2));
         flexibleSpace();
-        uv=centered("UV —",25,INK);uv.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));content.addView(uv);space(content,4);
-        weather=centered("Local weather",14,MUTED);content.addView(weather);space(content,4);
-        Button location=button("Refresh location",WHITE,MUTED,()->requestLocation());fullButton(content,location);
+        FrameLayout clock=new FrameLayout(this);ring=new CountdownRing(this);clock.addView(ring,new FrameLayout.LayoutParams(-1,-1));
+        LinearLayout clockText=new LinearLayout(this);clockText.setOrientation(LinearLayout.VERTICAL);clockText.setGravity(Gravity.CENTER);
+        ringLabel=centered("TIME OUTSIDE",10,MUTED);ringLabel.setLetterSpacing(.16f);clockText.addView(ringLabel);space(clockText,10);
+        timer=centered("Ready?",60,INK);timer.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL));timer.setFontFeatureSettings("tnum");timer.setIncludeFontPadding(false);
+        timer.setMaxLines(1);timer.setAutoSizeTextTypeUniformWithConfiguration(24,64,1,android.util.TypedValue.COMPLEX_UNIT_SP);
+        clockText.addView(timer,new LinearLayout.LayoutParams(-1,dp(80)));
+        FrameLayout.LayoutParams center=new FrameLayout.LayoutParams(dp(198),-2,Gravity.CENTER);clock.addView(clockText,center);
+        content.addView(clock,new LinearLayout.LayoutParams(-1,dp(264)));
+        space(content,10);timerDetail=centered("Apply sunscreen before heading out.",14,MUTED);content.addView(timerDetail);
+        space(content,28);
+        apply=button("I applied sunscreen",INK,WHITE,()->begin());apply.setMinHeight(dp(58));fullButton(content,apply);
+        sessionActions=new LinearLayout(this);sessionActions.setGravity(Gravity.CENTER_VERTICAL);
+        end=button("End session",WHITE,MUTED,()->{Reminders.stop(this);update();});end.setTextSize(13);
+        activity=button("Activity",WHITE,MUTED,()->showActivity());activity.setTextSize(13);
+        sessionActions.addView(end,new LinearLayout.LayoutParams(0,-2,1));sessionActions.addView(activity,new LinearLayout.LayoutParams(0,-2,1));content.addView(sessionActions);
         flexibleSpace();
-        timer=centered("Ready?",72,INK);timer.setTypeface(Typeface.create("sans-serif-light",Typeface.NORMAL));
-        timer.setMaxLines(1);timer.setAutoSizeTextTypeUniformWithConfiguration(30,80,1,android.util.TypedValue.COMPLEX_UNIT_SP);
-        content.addView(timer,new LinearLayout.LayoutParams(-1,dp(112)));
-        timerDetail=centered("Apply sunscreen, then start your timer.",15,MUTED);content.addView(timerDetail);
-        space(content,30);
-        apply=button("I applied sunscreen",INK,WHITE,()->begin());fullButton(content,apply);
-        end=button("End session",WHITE,MUTED,()->{Reminders.stop(this);update();});fullButton(content,end);
-        activity=button("Swimming or sweating?",WHITE,MUTED,()->showActivity());fullButton(content,activity);
-        flexibleSpace();
-        guidance=centered("",13,MUTED);guidance.setPadding(0,dp(8),0,dp(8));guidance.setOnClickListener(v->showSettings());guidance.setContentDescription("Reminder and weather status. Tap for settings.");content.addView(guidance);
-        View line=new View(this);line.setBackgroundColor(0xffeeeeee);content.addView(line,new LinearLayout.LayoutParams(-1,dp(1)));space(content,8);
-        profile=button("Add sunscreen",WHITE,INK,()->editProfile());fullButton(content,profile);
+        guidance=centered("",13,MUTED);guidance.setPadding(dp(8),dp(8),dp(8),dp(12));guidance.setOnClickListener(v->showSettings());guidance.setContentDescription("Reminder and weather status. Tap for settings.");content.addView(guidance);
+        TextView label=text("YOUR SUNSCREEN",10,MUTED,true);label.setLetterSpacing(.12f);label.setPadding(dp(4),0,0,dp(8));content.addView(label);
+        profile=button("Add sunscreen",0xfff7f7f5,INK,()->editProfile());profile.setTextSize(14);profile.setGravity(Gravity.CENTER_VERTICAL|Gravity.START);profile.setMinHeight(dp(60));profile.setCompoundDrawablePadding(dp(12));
+        android.graphics.drawable.Drawable bottle=getDrawable(R.drawable.ic_bottle);bottle.setBounds(0,0,dp(22),dp(28));profile.setCompoundDrawables(bottle,null,null,null);fullButton(content,profile);
         update();
     }
     void update(){
@@ -80,10 +96,12 @@ public class MainActivity extends Activity implements LocationListener {
         long now=System.currentTimeMillis();boolean active=p.getBoolean("active",false);long due=p.getLong("due",0);
         if(active){long remaining=Math.max(0,due-now),minutes=(remaining+59999)/60000;
             timer.setText(remaining==0?"Reapply now":String.format(Locale.getDefault(),"%d:%02d",minutes/60,minutes%60));
-            timerDetail.setText(remaining==0?"Tap below after reapplying.":"Reapply in "+minutes+" min · "+DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(due)));
-        }else{timer.setText("Ready?");timerDetail.setText("Apply sunscreen, then start your timer.");}
-        apply.setText(active?"I reapplied":"I applied sunscreen");end.setVisibility(active?View.VISIBLE:View.GONE);activity.setVisibility(active?View.VISIBLE:View.GONE);
-        activity.setText(p.getBoolean("wet",false)?"Swimming / sweating · on":"Swimming or sweating?");
+            timerDetail.setText(remaining==0?"Tap below once you’ve reapplied.":"Next application at "+DateFormat.getTimeInstance(DateFormat.SHORT).format(new Date(due)));
+            ringLabel.setText(remaining==0?"TIME TO REAPPLY":"HOURS : MINUTES");
+            ring.setRemaining((float)remaining/Math.max(1,due-p.getLong("applied",now)),true);
+        }else{timer.setText("Ready?");timerDetail.setText("Apply sunscreen before heading out.");ringLabel.setText("TIME OUTSIDE");ring.setRemaining(0,false);}
+        apply.setText(active?"I reapplied":"I applied sunscreen");sessionActions.setVisibility(active?View.VISIBLE:View.GONE);
+        activity.setText(p.getBoolean("wet",false)?"Water / sweat · on":"Activity");
         String name=p.getString("name","Add sunscreen"),spf=p.getString("spf","");profile.setText(name+(spf.isEmpty()?"":" · SPF "+spf));
         long fetched=p.getLong("weatherTime",0);boolean stale=now-fetched>60*Rules.MINUTE || now-p.getLong("locationTime",0)>60*Rules.MINUTE;
         String error=p.getString("weatherError","");
@@ -187,7 +205,7 @@ public class MainActivity extends Activity implements LocationListener {
             dialog.dismiss();update();if(value<30 || !broad.isChecked())new AlertDialog.Builder(this).setTitle("Check your protection").setMessage("AAD recommends broad-spectrum SPF 30 or higher. A higher SPF does not extend the reapplication interval.").setPositiveButton("Got it",null).show();
         }));dialog.show();
     }
-    void about(){new AlertDialog.Builder(this).setTitle("Made for time outside").setMessage("Start after applying sunscreen. Reapply at least every 2 hours outdoors. Water/sweat mode uses your bottle’s 40- or 80-minute limit; no confirmed water resistance means reapply immediately. Towel drying or finishing swimming makes reapplication due now. Only confirming a new application resets the timer.\n\nUV and weather are model estimates from Open-Meteo, not live skin measurements. High UV adds shade/clothing guidance; SPF and clouds never lengthen the timer.\n\nPrivacy: no account, ads or analytics. Your latest sunscreen and weather snapshot stay on this phone. Coordinates rounded to 2 decimals are sent to Open-Meteo over HTTPS; that provider also receives your IP address. Location is used only while the app is open or your outdoor session is running. End the session to stop tracking.\n\nAndroid may delay approximate alarms. Enable notifications and precise timing. After reboot, timers restore; open Sunward to restart location tracking. Force-stopping the app disables reminders until reopened.\n\nWeather: Open-Meteo (CC BY 4.0). Guidance: American Academy of Dermatology and FDA.")
+    void about(){new AlertDialog.Builder(this).setTitle("Made for time outside").setMessage("Start after applying sunscreen. Reapply at least every 2 hours outdoors. Water/sweat mode uses your bottle’s 40- or 80-minute limit; no confirmed water resistance means reapply immediately. Towel drying or finishing swimming makes reapplication due now. Only confirming a new application resets the timer.\n\nThe circle shows time until your next reminder, not remaining skin protection. UV and weather are model estimates from Open-Meteo, not live skin measurements. High UV adds shade/clothing guidance; SPF and clouds never lengthen the timer.\n\nPrivacy: no account, ads or analytics. Your latest sunscreen and weather snapshot stay on this phone. Coordinates rounded to 2 decimals are sent to Open-Meteo over HTTPS; that provider also receives your IP address. Location is used only while the app is open or your outdoor session is running. End the session to stop tracking.\n\nAndroid may delay approximate alarms. Enable notifications and precise timing. After reboot, timers restore; open Sunward to restart location tracking. Force-stopping the app disables reminders until reopened.\n\nWeather: Open-Meteo (CC BY 4.0). Guidance: American Academy of Dermatology and FDA.")
         .setPositiveButton("Done",null).setNeutralButton("Guidance",(d,w)->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://www.aad.org/public/everyday-care/sun-protection/shade-clothing-sunscreen/how-to-apply-sunscreen"))))
         .setNegativeButton("Weather source",(d,w)->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://open-meteo.com/")))).show();}
     void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
