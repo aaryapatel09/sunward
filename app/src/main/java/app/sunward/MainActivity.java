@@ -25,6 +25,7 @@ public class MainActivity extends Activity implements LocationListener {
     private Button profile,activity;
     private Button apply,end;
     private CountdownRing ring;
+    private SunscreenEditor editor;
     private LinearLayout sessionActions;
     private TextView ringLabel;
     private LocationManager manager;private boolean locating=false;
@@ -184,28 +185,11 @@ public class MainActivity extends Activity implements LocationListener {
         p.edit().putBoolean("wet",false).putLong("wetStarted",0).putLong("due",System.currentTimeMillis()).putBoolean("alerted",false).apply();Reminders.schedule(this);update();
     }
     void editProfile(){
-        LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);box.setPadding(dp(24),dp(8),dp(24),dp(8));
-        EditText name=new EditText(this);name.setHint("Sunscreen name");name.setSingleLine(true);name.setText(p.getString("name",""));box.addView(name);
-        EditText spf=new EditText(this);spf.setHint("SPF on label (e.g. 50)");spf.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);spf.setText(p.getString("spf",""));box.addView(spf);
-        CheckBox broad=new CheckBox(this);broad.setText("Label says broad spectrum (UVA + UVB)");broad.setChecked(p.getBoolean("broad",false));box.addView(broad);
-        box.addView(text("Water resistance on the label",14,INK,true));
-        Spinner water=new Spinner(this);water.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,new String[]{"None / not sure","40 minutes","80 minutes"}));water.setSelection(p.getInt("water",0)==40?1:p.getInt("water",0)==80?2:0);box.addView(water);
-        box.addView(text("Use broad-spectrum SPF 30+ and follow your label. Saving a product never extends a running timer.",13,MUTED,false));
-        AlertDialog dialog=new AlertDialog.Builder(this).setTitle("Your sunscreen").setView(box).setPositiveButton("Save",null).setNegativeButton("Cancel",null).create();
-        dialog.setOnShowListener(d->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{
-            int value;try{value=Integer.parseInt(spf.getText().toString().trim());}catch(Exception e){spf.setError("Enter the SPF on your bottle");return;}
-            if(value<1||value>150){spf.setError("Enter a label SPF between 1 and 150");return;}
-            String label=name.getText().toString().trim();if(label.isEmpty()){name.setError("Enter a sunscreen name");return;}
-            int resistance=water.getSelectedItemPosition()==1?40:water.getSelectedItemPosition()==2?80:0;
-            p.edit().putString("name",label).putString("spf",String.valueOf(value)).putBoolean("broad",broad.isChecked()).putInt("water",resistance).apply();
-            if(p.getBoolean("active",false) && p.getBoolean("wet",false)){
-                long revised=Rules.due(p.getLong("applied",0),p.getLong("wetStarted",0),resistance);
-                p.edit().putLong("due",Math.min(p.getLong("due",0),revised)).putBoolean("alerted",false).apply();Reminders.schedule(this);
-            }
-            dialog.dismiss();update();if(value<30 || !broad.isChecked())new AlertDialog.Builder(this).setTitle("Check your protection").setMessage("AAD recommends broad-spectrum SPF 30 or higher. A higher SPF does not extend the reapplication interval.").setPositiveButton("Got it",null).show();
-        }));dialog.show();
+        if(editor!=null)editor.close();
+        editor=new SunscreenEditor(this);editor.show();
     }
-    void about(){new AlertDialog.Builder(this).setTitle("Made for time outside").setMessage("Start after applying sunscreen. Reapply at least every 2 hours outdoors. Water/sweat mode uses your bottle’s 40- or 80-minute limit; no confirmed water resistance means reapply immediately. Towel drying or finishing swimming makes reapplication due now. Only confirming a new application resets the timer.\n\nThe circle shows time until your next reminder, not remaining skin protection. UV and weather are model estimates from Open-Meteo, not live skin measurements. High UV adds shade/clothing guidance; SPF and clouds never lengthen the timer.\n\nPrivacy: no account, ads or analytics. Your latest sunscreen and weather snapshot stay on this phone. Coordinates rounded to 2 decimals are sent to Open-Meteo over HTTPS; that provider also receives your IP address. Location is used only while the app is open or your outdoor session is running. End the session to stop tracking.\n\nAndroid may delay approximate alarms. Enable notifications and precise timing. After reboot, timers restore; open Sunward to restart location tracking. Force-stopping the app disables reminders until reopened.\n\nWeather: Open-Meteo (CC BY 4.0). Guidance: American Academy of Dermatology and FDA.")
+    @Override public void onDestroy(){if(editor!=null)editor.close();super.onDestroy();}
+    void about(){new AlertDialog.Builder(this).setTitle("Made for time outside").setMessage("Start after applying sunscreen. Reapply at least every 2 hours outdoors. Water/sweat mode uses your bottle’s 40- or 80-minute limit; no confirmed water resistance means reapply immediately. Towel drying or finishing swimming makes reapplication due now. Only confirming a new application resets the timer.\n\nThe circle shows time until your next reminder, not remaining skin protection. UV and weather are model estimates from Open-Meteo, not live skin measurements. High UV adds shade/clothing guidance; SPF and clouds never lengthen the timer.\n\nPrivacy: no account or ads. Google Play services reads barcodes on-device and may download its scanning module or collect SDK diagnostic data. Barcode lookup sends only the number (not camera images) to Open Beauty Facts, which also sees your IP address. Product data is contributed by the community (ODbL; individual contents DbCL). Check the bottle before saving. Sunward has no app analytics. Your latest sunscreen and weather snapshot stay on this phone. Coordinates rounded to 2 decimals are sent to Open-Meteo over HTTPS; that provider also receives your IP address. Location is used only while the app is open or your outdoor session is running. End the session to stop tracking.\n\nAndroid may delay approximate alarms. Enable notifications and precise timing. After reboot, timers restore; open Sunward to restart location tracking. Force-stopping the app disables reminders until reopened.\n\nWeather: Open-Meteo (CC BY 4.0). Guidance: American Academy of Dermatology and FDA.")
         .setPositiveButton("Done",null).setNeutralButton("Guidance",(d,w)->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://www.aad.org/public/everyday-care/sun-protection/shade-clothing-sunscreen/how-to-apply-sunscreen"))))
         .setNegativeButton("Weather source",(d,w)->startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse("https://open-meteo.com/")))).show();}
     void toast(String s){Toast.makeText(this,s,Toast.LENGTH_LONG).show();}
