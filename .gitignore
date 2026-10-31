@@ -14,3 +14,6 @@ build-local/
 .env.*
 *.apk
 *.aab
+
+!website/public/downloads/*.apk
+.vercel/
